@@ -1,0 +1,19 @@
+# Terraform
+*.tfstate
+*.tfstate.*
+terraform.tfvars
+.terraform/
+crash.log
+crash.*.log
+
+# K8s — secret manifests with real values
+k8s/app/secret.yaml
+
+# OS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo

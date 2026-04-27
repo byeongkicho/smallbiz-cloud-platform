@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: smallbiz-app
+  namespace: smallbiz
+  labels:
+    app: smallbiz-app
+spec:
+  type: ClusterIP
+  selector:
+    app: smallbiz-app
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP

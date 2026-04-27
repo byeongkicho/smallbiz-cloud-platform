@@ -1,0 +1,29 @@
+# ──────────────────────────────────────
+# Project Settings
+# ──────────────────────────────────────
+aws_region   = "ap-northeast-2"
+project_name = "smallbiz-platform"
+environment  = "dev"
+
+# ──────────────────────────────────────
+# VPC
+# ──────────────────────────────────────
+vpc_cidr             = "10.0.0.0/16"
+availability_zones   = ["ap-northeast-2a", "ap-northeast-2c"]
+public_subnet_cidrs  = ["10.0.1.0/24", "10.0.2.0/24"]
+private_subnet_cidrs = ["10.0.11.0/24", "10.0.12.0/24"]
+
+# ──────────────────────────────────────
+# EKS
+# ──────────────────────────────────────
+eks_cluster_version     = "1.31"
+eks_node_instance_types = ["t3.medium", "t3.large"]
+
+# ──────────────────────────────────────
+# RDS — Phase 2
+# Copy this file to terraform.tfvars (gitignored) and set db_password to a strong value.
+# ──────────────────────────────────────
+db_instance_class = "db.t3.micro"
+db_name           = "appdb"
+db_username       = "dbadmin"
+db_password       = "CHANGE_ME"  # required: set strong value via terraform.tfvars (gitignored)

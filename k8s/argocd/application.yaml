@@ -1,0 +1,32 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: smallbiz-app
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    # TODO: GitHub repo URL로 변경 (push 후)
+    # repoURL: https://github.com/<your-username>/aws-portfolio.git
+    # targetRevision: main
+    # path: k8s/app
+
+    # 로컬 테스트용 — ArgoCD가 Git repo를 바라보도록 변경 예정
+    repoURL: https://github.com/placeholder/aws-portfolio.git
+    targetRevision: main
+    path: k8s/app
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: smallbiz
+
+  syncPolicy:
+    automated:
+      prune: true      # Git에서 삭제하면 클러스터에서도 삭제
+      selfHeal: true   # 누가 수동으로 바꾸면 자동 복구
+    syncOptions:
+      - CreateNamespace=true
+      - PruneLast=true
