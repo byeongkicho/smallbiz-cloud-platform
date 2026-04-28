@@ -14,7 +14,7 @@ What this project demonstrates:
 - **Production patterns, not toy code** — IRSA, AWS Load Balancer Controller, ArgoCD GitOps, modular Terraform with separate `vpc` / `eks` / `rds` modules
 - **Cost-conscious decisions, documented** — single-AZ NAT, `t3.micro` RDS, Spot-ready node groups, with explicit trade-offs in [`docs/cost-analysis.md`](docs/cost-analysis.md)
 - **Repeatable infrastructure** — clean `terraform apply` from zero state to working cluster, then `terraform destroy` to control burn
-- **Operations notes** (in progress) — real apply lessons captured for future-me and reviewers
+- **Operations notes** — apply lessons captured as encountered ([`docs/operations.md`](docs/operations.md), in progress)
 
 ## 📐 Architecture
 
@@ -82,28 +82,37 @@ RDS MySQL 8.0 (Private Subnet)
 ```
 aws-portfolio/
 ├── README.md
+├── LICENSE                              # MIT
+├── CONTRIBUTING.md
+├── .gitignore
+├── docs/
+│   ├── cost-analysis.md                 # Monthly cost breakdown + trade-offs
+│   └── operations.md                    # Apply lessons (in progress)
 ├── terraform/
-│   ├── main.tf              # Module composition
-│   ├── provider.tf          # AWS + K8s + Helm providers
-│   ├── variables.tf         # Input variables
-│   ├── outputs.tf           # Output values
-│   ├── versions.tf          # Provider version constraints
-│   ├── terraform.tfvars     # Variable values
+│   ├── main.tf                          # Module composition
+│   ├── provider.tf                      # AWS + Kubernetes + Helm providers
+│   ├── variables.tf                     # Input variables
+│   ├── outputs.tf                       # Output values
+│   ├── versions.tf                      # Provider version constraints
+│   ├── terraform.tfvars.example         # Copy to terraform.tfvars (gitignored)
 │   └── modules/
-│       ├── vpc/             # VPC, Subnets, NAT, Routes
-│       ├── eks/             # EKS Cluster, Node Group, OIDC, ALB Controller
-│       └── rds/             # RDS PostgreSQL (Phase 2)
-├── k8s/                     # Kubernetes manifests (Phase 2)
+│       ├── vpc/                         # VPC, Subnets, NAT, Routes
+│       ├── eks/                         # EKS Cluster, Node Group, OIDC, ALB Controller
+│       └── rds/                         # RDS MySQL 8.0
+├── k8s/
 │   ├── app/
+│   │   ├── namespace.yaml
+│   │   ├── configmap.yaml
 │   │   ├── deployment.yaml
 │   │   ├── service.yaml
 │   │   ├── ingress.yaml
-│   │   └── hpa.yaml
+│   │   ├── hpa.yaml
+│   │   └── secret.yaml.example          # Copy to secret.yaml (gitignored)
 │   └── argocd/
 │       └── application.yaml
 └── .github/
     └── workflows/
-        └── ci.yaml          # GitHub Actions CI pipeline
+        └── terraform-validate.yaml      # PR-time fmt + validate (no AWS creds needed)
 ```
 
 ## 🚀 Implementation Phases

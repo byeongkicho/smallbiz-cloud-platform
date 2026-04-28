@@ -1,0 +1,54 @@
+name: Terraform Validate
+
+# PR-time format and validation check.
+# No AWS credentials required — local-only checks (fmt + init -backend=false + validate).
+# Phase 3 will add a separate terraform-plan workflow with OIDC role + remote state.
+
+on:
+  pull_request:
+    paths:
+      - 'terraform/**'
+      - '.github/workflows/terraform-validate.yaml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'terraform/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: fmt + validate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.x"
+          terraform_wrapper: false
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Init (no backend)
+        run: terraform init -backend=false
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Validate sub-modules
+        run: |
+          set -e
+          for module in modules/*/; do
+            echo "=== Validating $module ==="
+            (cd "$module" && terraform init -backend=false && terraform validate)
+          done
