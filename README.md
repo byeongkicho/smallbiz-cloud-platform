@@ -1,6 +1,20 @@
 # 🏢 Small Business Cloud Platform
 
 > 소규모 기업의 비용 효율적이고 안정적인 클라우드 인프라 운영을 위한 포트폴리오 프로젝트
+> A career-transition portfolio in production-style SMB cloud architecture.
+
+## 💡 Why this project
+
+A career-transition portfolio: from a social-work undergrad to infrastructure engineering, currently delivering daily L1 enterprise IT support through a global IT delivery chain. This repo is the production-grade end of that learning trajectory — built end-to-end on my own AWS account, `terraform apply`-ed and verified, then destroyed for cost control.
+
+The "small business" framing matters. Most cloud architecture content assumes either FAANG-scale problems or hello-world demos. SMBs sit between: they need real availability, IaC, GitOps, and observability — but every line item must justify its monthly cost. This project is my answer to that gap.
+
+What this project demonstrates:
+
+- **Production patterns, not toy code** — IRSA, AWS Load Balancer Controller, ArgoCD GitOps, modular Terraform with separate `vpc` / `eks` / `rds` modules
+- **Cost-conscious decisions, documented** — single-AZ NAT, `t3.micro` RDS, Spot-ready node groups, with explicit trade-offs in [`docs/cost-analysis.md`](docs/cost-analysis.md)
+- **Repeatable infrastructure** — clean `terraform apply` from zero state to working cluster, then `terraform destroy` to control burn
+- **Operations notes** (in progress) — real apply lessons captured for future-me and reviewers
 
 ## 📐 Architecture
 
