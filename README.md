@@ -1,6 +1,7 @@
 # 🏢 Small Business Cloud Platform
 
 [![Terraform Validate](https://github.com/byeongkicho/smallbiz-cloud-platform/actions/workflows/terraform-validate.yaml/badge.svg)](https://github.com/byeongkicho/smallbiz-cloud-platform/actions/workflows/terraform-validate.yaml)
+[![Terraform Plan](https://github.com/byeongkicho/smallbiz-cloud-platform/actions/workflows/terraform-plan.yaml/badge.svg)](https://github.com/byeongkicho/smallbiz-cloud-platform/actions/workflows/terraform-plan.yaml)
 
 > 소규모 기업의 비용 효율적이고 안정적인 클라우드 인프라 운영을 위한 포트폴리오 프로젝트
 > A career-transition portfolio in production-style SMB cloud architecture.
@@ -118,6 +119,9 @@ aws-portfolio/
 │   ├── outputs.tf                       # Output values
 │   ├── versions.tf                      # Provider version constraints
 │   ├── terraform.tfvars.example         # Copy to terraform.tfvars (gitignored)
+│   ├── bootstrap/                       # CI가 AWS에 접근하는 층 (OIDC + plan 전용 역할)
+│   │   ├── main.tf                      #   state를 루트와 분리 — 권한 부여/소비 계층 분리
+│   │   └── README.md                    #   신뢰 정책·권한 범위·트레이드오프
 │   └── modules/
 │       ├── vpc/                         # VPC, Subnets, NAT, Routes
 │       ├── eks/                         # EKS Cluster, Node Group, OIDC, ALB Controller
@@ -135,8 +139,26 @@ aws-portfolio/
 │       └── application.yaml
 └── .github/
     └── workflows/
-        └── terraform-validate.yaml      # PR-time fmt + validate (no AWS creds needed)
+        ├── terraform-validate.yaml      # PR-time fmt + validate (no AWS creds needed)
+        └── terraform-plan.yaml          # PR-time plan (OIDC 수임 · 원격 state · 읽기 전용)
 ```
+
+## 🔄 CI/CD — PR에서 계획을 먼저 본다
+
+워크플로가 두 층이다. **자격증명이 필요 없는 검사를 앞에** 두는 것이 의도다.
+
+| 워크플로 | AWS 접근 | 잡는 것 |
+|---|---|---|
+| `terraform-validate.yaml` | 없음 | fmt·문법·모듈 유효성. fork PR에서도 돈다 |
+| `terraform-plan.yaml` | **OIDC 단기 토큰** | 실제 계정과 코드의 차이 (`plan` 결과를 잡 요약에 게시) |
+
+**저장소에 장기 AWS 액세스 키가 없다.** GitHub OIDC 공급자를 신뢰하고, 워크플로는 실행
+1건당 단기 토큰으로 IAM 역할을 수임한다. 신뢰 정책의 `sub`는 이 저장소의
+`pull_request`와 `refs/heads/main` **두 값에만** `StringEquals`로 묶여 있다.
+
+역할은 **읽기 + state 잠금만** 가능하다. `s3:PutObject`가 없어 state를 덮어쓸 수 없고,
+쓰기 권한이 없어 **apply가 성공할 수 없다**. 설계 근거와 한계는
+[`terraform/bootstrap/README.md`](terraform/bootstrap/README.md).
 
 ## 🚀 Implementation Phases
 
@@ -156,8 +178,10 @@ aws-portfolio/
 - [ ] HPA 동작 — metrics-server 미설치
 
 ### Phase 3 📋 — Operations & Observability
-- [ ] GitHub Actions CI 실제 실행 (워크플로 파일만 존재, 실행 이력 0회)
-- [ ] Terraform 원격 state (S3) + PR 단위 `plan`
+- [x] GitHub Actions CI 실제 실행 — 첫 실행이 결함 2건 검출 (fmt 위반 · 하위 모듈 `required_providers` 누락)
+- [x] Terraform 원격 state (S3 + DynamoDB 잠금)
+- [x] **GitHub OIDC + PR 단위 `plan`** — 장기 액세스 키 없이 CI가 역할 수임, plan 결과를 잡 요약에 게시
+- [ ] checkov 정적 분석 (soft-fail) + `security-baseline.md`
 - [ ] CloudWatch Container Insights
 - [ ] Karpenter (replace managed node group)
 - [ ] CloudFront + S3

@@ -2,7 +2,8 @@ name: Terraform Validate
 
 # PR-time format and validation check.
 # No AWS credentials required — local-only checks (fmt + init -backend=false + validate).
-# Phase 3 will add a separate terraform-plan workflow with OIDC role + remote state.
+# 실제 계정을 상대로 도는 plan은 terraform-plan.yaml에 분리돼 있다 (OIDC + 원격 state).
+# 이쪽은 자격증명이 없어 fork PR에서도 돌고, 문법 오류를 가장 싸게 잡는 층이다.
 
 on:
   pull_request:
@@ -33,7 +34,9 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: "1.x"
+          # 로컬(1.5.7)과 동일하게 고정. "1.x"는 CI가 매번 최신을 받아
+          # 로컬과 다른 버전으로 검증하게 만든다 — 스큐의 원인.
+          terraform_version: "1.5.7"
           terraform_wrapper: false
 
       - name: Terraform Format Check
@@ -52,3 +55,12 @@ jobs:
             echo "=== Validating $module ==="
             (cd "$module" && terraform init -backend=false && terraform validate)
           done
+
+      # 부트스트랩 계층은 루트와 state가 분리돼 있어 위 init/validate에 잡히지 않는다.
+      # 여기서 빠뜨리면 IAM 신뢰 정책의 문법 오류가 apply 시점까지 안 보인다.
+      - name: Validate bootstrap layer
+        run: |
+          set -e
+          cd bootstrap
+          terraform init -backend=false
+          terraform validate
