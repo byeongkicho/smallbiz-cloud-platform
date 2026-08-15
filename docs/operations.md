@@ -1,7 +1,7 @@
 # Operations — 실제로 겪은 것
 
 2026-04-01 ~ 04-03 apply/destroy 사이클과 2026-08-15 사후 분석에서 나온 것들.
-**겪은 것과 겪지 않은 것을 나눠 적는다** — 아래 §1~4는 실제 관측, §5는 아직 겪지 않은 알려진 위험이다.
+**겪은 것과 겪지 않은 것을 나눠 적는다** — §1~5·§7은 실제 관측, §6은 아직 겪지 않은 알려진 위험이다.
 
 ---
 
@@ -66,11 +66,29 @@ APN2-AmazonEKS-Hours:extendedSupport   43.127h × $0.50 = $21.56
 
 ---
 
-## 5. 아직 겪지 않았지만 대비해야 하는 것 (재검증 시)
+## 5. CI를 처음 켜자 결함 2건이 나왔다
+
+워크플로 파일은 2026-04부터 저장소에 있었지만 **실행 이력이 0회**였다. 2026-08-15에 처음 돌렸고, 세 번 만에 초록이 됐다.
+
+| 실행 | 결과 | 걸린 것 |
+|---|---|---|
+| #1 | ❌ | `terraform fmt -check` — `modules/vpc/main.tf`의 tags 정렬 (exit 3) |
+| #2 | ❌ | `Validate sub-modules` — helm provider 파괴적 변경 |
+| #3 | ✅ | — |
+
+**#2가 진짜 발견이다.** `modules/{vpc,eks,rds}` 어디에도 `required_providers`가 없었다. 루트는 `helm ~> 2.12`로 고정돼 있어 통과하지만, 모듈을 단독으로 `terraform init -backend=false` 하면 provider가 **최신으로 해석된다.** helm 3.x는 `set { ... }` 블록을 `set = [{ ... }]` 속성으로 바꿨고, `modules/eks/main.tf`의 `helm_release` 3곳이 전부 깨졌다.
+
+루트에서만 쓰는 동안은 절대 드러나지 않는다. **모듈을 다른 루트에서 재사용하는 순간 터진다.** 각 모듈이 자기가 쓰는 provider를 스스로 선언하도록 고쳤다.
+
+**교훈**: 검증을 안 돌리면 통과한 것이 아니라 **판정이 없는 것**이다. 4개월간 초록도 빨강도 아니었을 뿐이다.
+
+---
+
+## 6. 아직 겪지 않았지만 대비해야 하는 것 (재검증 시)
 
 ⚠️ **아래는 관측된 사고가 아니다.** 2026-04 destroy는 깨끗하게 끝났고(serial 93 / 리소스 0, 잔존 고아 리소스 0건) 아래 상황은 발생하지 않았다. 다만 §1을 고쳐 ALB가 **실제로 생성되면** 그때부터 유효해지는 위험이라 미리 적어둔다.
 
-### 5-1. 컨트롤러가 만든 ALB는 Terraform state 밖에 있다
+### 6-1. 컨트롤러가 만든 ALB는 Terraform state 밖에 있다
 
 AWS Load Balancer Controller가 Ingress를 보고 만든 ALB·타깃그룹·`k8s-*` 보안그룹은 Terraform이 모른다. `terraform destroy`가 EKS를 먼저 지우면 컨트롤러가 사라져 ALB가 고아가 되고, 그 ENI/SG가 VPC에 남아 `DependencyViolation`으로 VPC 삭제가 실패한다.
 
@@ -81,25 +99,25 @@ kubectl delete ingress --all --all-namespaces
 terraform destroy
 ```
 
-### 5-2. ArgoCD Application finalizer
+### 6-2. ArgoCD Application finalizer
 
 `application.yaml`에 `resources-finalizer.argocd.argoproj.io`가 있다. ArgoCD를 먼저 지우면 finalizer를 처리할 컨트롤러가 없어 Application과 네임스페이스가 `Terminating`에 정체한다.
-`syncPolicy.automated.prune = true`이므로 **Application을 먼저 지우면 앱 리소스(Ingress 포함)가 함께 정리되고, 그 결과 5-1도 같이 해소된다.**
+`syncPolicy.automated.prune = true`이므로 **Application을 먼저 지우면 앱 리소스(Ingress 포함)가 함께 정리되고, 그 결과 6-1도 같이 해소된다.**
 
-### 5-3. helm/kubernetes provider가 module 출력에 의존
+### 6-3. helm/kubernetes provider가 module 출력에 의존
 
 `provider.tf`가 `module.eks.cluster_endpoint`로 provider를 구성한다. destroy 중 클러스터가 먼저 사라지면 `Kubernetes cluster unreachable`로 중단된다.
 - 예방: destroy 직전 `aws eks update-kubeconfig` 재실행
 - 복구: `terraform state rm` 후 `terraform destroy -refresh=false`
 - 근본 해결: 루트 모듈을 인프라 / 애드온 2단으로 분리 — **알려진 한계로 남겨둔다**
 
-### 5-4. destroy 완료 판정 기준
+### 6-4. destroy 완료 판정 기준
 
 셋 다 만족해야 완료다: `terraform state list`가 비었다 · 리전 전수 조회에서 잔존 0건 · **다음날 Cost Explorer에서 해당 서비스 $0**.
 
 ---
 
-## 6. 이 사이클의 가장 큰 실패 — 종료 확인
+## 7. 이 사이클의 가장 큰 실패 — 종료 확인
 
 3~4시간 세션을 의도했는데 **클러스터가 43.13시간 돌았다**. 비용 자체는 $34로 감당 가능한 범위였지만, 비율로 보면 계획 대비 10배 이상이다.
 

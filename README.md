@@ -1,5 +1,7 @@
 # 🏢 Small Business Cloud Platform
 
+[![Terraform Validate](https://github.com/byeongkicho/smallbiz-cloud-platform/actions/workflows/terraform-validate.yaml/badge.svg)](https://github.com/byeongkicho/smallbiz-cloud-platform/actions/workflows/terraform-validate.yaml)
+
 > 소규모 기업의 비용 효율적이고 안정적인 클라우드 인프라 운영을 위한 포트폴리오 프로젝트
 > A career-transition portfolio in production-style SMB cloud architecture.
 
