@@ -9,13 +9,10 @@ spec:
   project: default
 
   source:
-    # TODO: GitHub repo URL로 변경 (push 후)
-    # repoURL: https://github.com/<your-username>/aws-portfolio.git
-    # targetRevision: main
-    # path: k8s/app
-
-    # 로컬 테스트용 — ArgoCD가 Git repo를 바라보도록 변경 예정
-    repoURL: https://github.com/placeholder/aws-portfolio.git
+    # ⚠️ 2026-04 사이클에서는 이 값이 placeholder였다. ArgoCD helm 릴리스는
+    #    deployed였지만 Application은 존재하지 않는 저장소를 가리키고 있었으므로
+    #    동기화가 한 번도 일어나지 않았다. README 검증 수준 표의 "설치만"이 이 뜻이다.
+    repoURL: https://github.com/byeongkicho/smallbiz-cloud-platform.git
     targetRevision: main
     path: k8s/app
 
