@@ -26,9 +26,8 @@ resource "aws_iam_openid_connect_provider" "github" {
 # 신뢰 정책 — 누가 이 역할을 수임할 수 있는가
 #
 # 🔴 여기가 이 파일에서 가장 중요한 부분이다.
-# `sub`를 한정하지 않으면(예: `repo:owner/repo:*`) 누구든 그 저장소를 포크해
-# 워크플로를 돌리는 것으로는 안 되지만, 저장소 안의 **어떤 ref·어떤 환경**이든
-# 수임할 수 있게 된다. 여기서는 두 경우만 허용한다:
+# `sub`를 한정하지 않으면(예: `repo:owner/repo:*`) 그 저장소 안의
+# **어떤 ref·어떤 환경**이든 수임할 수 있게 된다. 여기서는 두 경우만 허용한다:
 #   - pull_request 이벤트 (plan을 보여주는 용도)
 #   - main 브랜치 push  (머지 후 재확인)
 # 태그·다른 브랜치·environment는 전부 거부된다.
@@ -63,8 +62,11 @@ data "aws_iam_policy_document" "gha_assume_role" {
 }
 
 resource "aws_iam_role" "gha_terraform_plan" {
-  name        = "${var.project_name}-gha-terraform-plan"
-  description = "GitHub Actions가 terraform plan을 실행할 때 수임하는 역할 (plan 전용, apply 불가)"
+  name = "${var.project_name}-gha-terraform-plan"
+
+  # 영문으로 쓴다 — IAM description은 ASCII와 Latin-1만 받는다.
+  # 한글을 넣으면 CreateRole이 ValidationError로 죽는다(실측, 2026-08-15).
+  description = "Assumed by GitHub Actions to run terraform plan. Read-only: cannot apply."
 
   assume_role_policy   = data.aws_iam_policy_document.gha_assume_role.json
   max_session_duration = 3600
