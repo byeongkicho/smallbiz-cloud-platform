@@ -50,13 +50,24 @@ variable "private_subnet_cidrs" {
 # EKS
 # ──────────────────────────────────────
 variable "eks_cluster_version" {
-  description = "Kubernetes version for EKS"
+  description = <<-EOT
+    Kubernetes version for EKS.
+
+    1.34를 쓰는 이유: 표준 지원 종료가 2026-12-02로 아직 남아 있다.
+    표준 지원이 끝난 버전은 확장 지원 요금이 붙어 제어 플레인이
+    시간당 $0.10 → $0.60 (6배)이 된다.
+
+    2026-04 사이클에서 이 값이 실제로 문제가 됐다 — 클러스터가 1.30/1.31로
+    43시간 돌았고, 청구서 $34.48 중 $21.56(63%)이 확장 지원 할증이었다.
+    리소스를 더 쓴 것이 아니라 버전을 안 올려서 낸 돈이다.
+    근거: docs/evidence/2026-04-apply-cycle.md
+  EOT
   type        = string
-  default     = "1.29"
+  default     = "1.34"
 }
 
 variable "eks_node_instance_types" {
-  description = "Instance types for Karpenter provisioned nodes"
+  description = "Instance types for the managed node group (Karpenter는 미구현 — README 로드맵 참조)"
   type        = list(string)
   default     = ["t3.medium", "t3.large"]
 }
