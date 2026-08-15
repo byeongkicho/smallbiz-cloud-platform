@@ -1,7 +1,7 @@
 # Operations — 실제로 겪은 것
 
 2026-04-01 ~ 04-03 apply/destroy 사이클과 2026-08-15 사후 분석에서 나온 것들.
-**겪은 것과 겪지 않은 것을 나눠 적는다** — §1~5·§7은 실제 관측, §6은 아직 겪지 않은 알려진 위험이다.
+**겪은 것과 겪지 않은 것을 나눠 적는다** — §1~6·§8은 실제 관측, §7은 아직 겪지 않은 알려진 위험이다.
 
 ---
 
@@ -84,11 +84,28 @@ APN2-AmazonEKS-Hours:extendedSupport   43.127h × $0.50 = $21.56
 
 ---
 
-## 6. 아직 겪지 않았지만 대비해야 하는 것 (재검증 시)
+## 6. 원격 state 전환 중 의도치 않은 apply (2026-08-15)
 
-⚠️ **아래는 관측된 사고가 아니다.** 2026-04 destroy는 깨끗하게 끝났고(serial 93 / 리소스 0, 잔존 고아 리소스 0건) 아래 상황은 발생하지 않았다. 다만 §1을 고쳐 ALB가 **실제로 생성되면** 그때부터 유효해지는 위험이라 미리 적어둔다.
+**무슨 일**: S3 backend가 제대로 붙었는지 확인하려고 `terraform apply`를 실행했다. 이 저장소의 apply는 **VPC·EKS·노드그룹·RDS·NAT를 실제로 만든다.** `var.db_password`에 기본값이 없어 프롬프트에서 멈출 것으로 봤으나, `-auto-approve`와 함께 돌아 환경변수 없이도 진행됐다.
 
-### 6-1. 컨트롤러가 만든 ALB는 Terraform state 밖에 있다
+**대응**: 즉시 `terraform destroy`. **25개 리소스 전부 삭제**, 전 리전 점검 잔존 0건. 노출 시간 약 10분, 추정 비용 $0.1 미만.
+
+**부수 효과 (의도한 것이 아님)**: 이 사고가 원격 state를 끝까지 검증해 버렸다. S3에 **버전 7개**가 apply→destroy 전 과정을 기록했고(31KB → 41KB → … → 180바이트 빈 state), DynamoDB 잠금도 정상 동작했다. 버전 관리를 켜둔 것이 여기서 값을 했다 — 중간 상태를 전부 되짚을 수 있다.
+
+**교훈 3가지**
+1. **"상태 확인"과 "상태 변경"을 같은 명령으로 하지 않는다.** backend 검증은 `terraform init` + `terraform state list`로 충분했다. apply는 검증 도구가 아니다.
+2. **비용이 드는 명령에는 물리적 가드가 필요하다.** 이 저장소에는 `apply`를 막는 것이 아무것도 없었다. 아래 `scripts/verify-empty.sh`를 추가했고, apply 래퍼도 추가 대상이다.
+3. **`-auto-approve`는 프롬프트가 안전망 역할을 하리라는 가정을 무너뜨린다.** 변수 프롬프트에서 멈출 것이라는 예상이 틀렸다.
+
+**남긴 것**: `scripts/verify-empty.sh` — destroy 후 16개 항목(ELB·타깃그룹·유휴 ENI·`k8s-*` SG·스냅샷·로그그룹 포함)을 점검한다. 첫 실행에서 `default-*` RDS 서브넷그룹을 오탐으로 잡았고 제외 처리했다 — **오탐을 남겨두면 경고 전체를 무시하게 된다.**
+
+---
+
+## 7. 아직 겪지 않았지만 대비해야 하는 것 (재검증 시)
+
+⚠️ **아래는 관측된 사고가 아니다.** 2026-04 destroy도, 2026-08-15의 사고성 destroy도 잔존 리소스 없이 끝났다. 다만 §1을 고쳐 ALB가 **실제로 생성되면** 그때부터 유효해지는 위험이라 미리 적어둔다.
+
+### 7-1. 컨트롤러가 만든 ALB는 Terraform state 밖에 있다
 
 AWS Load Balancer Controller가 Ingress를 보고 만든 ALB·타깃그룹·`k8s-*` 보안그룹은 Terraform이 모른다. `terraform destroy`가 EKS를 먼저 지우면 컨트롤러가 사라져 ALB가 고아가 되고, 그 ENI/SG가 VPC에 남아 `DependencyViolation`으로 VPC 삭제가 실패한다.
 
@@ -99,25 +116,25 @@ kubectl delete ingress --all --all-namespaces
 terraform destroy
 ```
 
-### 6-2. ArgoCD Application finalizer
+### 7-2. ArgoCD Application finalizer
 
 `application.yaml`에 `resources-finalizer.argocd.argoproj.io`가 있다. ArgoCD를 먼저 지우면 finalizer를 처리할 컨트롤러가 없어 Application과 네임스페이스가 `Terminating`에 정체한다.
-`syncPolicy.automated.prune = true`이므로 **Application을 먼저 지우면 앱 리소스(Ingress 포함)가 함께 정리되고, 그 결과 6-1도 같이 해소된다.**
+`syncPolicy.automated.prune = true`이므로 **Application을 먼저 지우면 앱 리소스(Ingress 포함)가 함께 정리되고, 그 결과 7-1도 같이 해소된다.**
 
-### 6-3. helm/kubernetes provider가 module 출력에 의존
+### 7-3. helm/kubernetes provider가 module 출력에 의존
 
 `provider.tf`가 `module.eks.cluster_endpoint`로 provider를 구성한다. destroy 중 클러스터가 먼저 사라지면 `Kubernetes cluster unreachable`로 중단된다.
 - 예방: destroy 직전 `aws eks update-kubeconfig` 재실행
 - 복구: `terraform state rm` 후 `terraform destroy -refresh=false`
 - 근본 해결: 루트 모듈을 인프라 / 애드온 2단으로 분리 — **알려진 한계로 남겨둔다**
 
-### 6-4. destroy 완료 판정 기준
+### 7-4. destroy 완료 판정 기준
 
 셋 다 만족해야 완료다: `terraform state list`가 비었다 · 리전 전수 조회에서 잔존 0건 · **다음날 Cost Explorer에서 해당 서비스 $0**.
 
 ---
 
-## 7. 이 사이클의 가장 큰 실패 — 종료 확인
+## 8. 이 사이클의 가장 큰 실패 — 종료 확인
 
 3~4시간 세션을 의도했는데 **클러스터가 43.13시간 돌았다**. 비용 자체는 $34로 감당 가능한 범위였지만, 비율로 보면 계획 대비 10배 이상이다.
 
