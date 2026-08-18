@@ -66,12 +66,12 @@ RDS MySQL (Private Subnet, db.t3.micro)
 | Category | Technology | 상태 |
 |---|---|---|
 | IaC | Terraform >= 1.5 | **검증** |
-| Container Orchestration | AWS EKS (Kubernetes 1.34) | **검증** |
+| Container Orchestration | AWS EKS — 코드 1.34 | **apply 검증된 가동은 1.30 → 1.31** |
 | Node Management | 관리형 노드그룹 (t3.medium × 2) | **검증** |
 | Ingress | AWS Load Balancer Controller | 설치만 |
 | CD | ArgoCD (GitOps) | 설치만 |
 | Database | RDS MySQL (db.t3.micro) | **검증** |
-| CI | GitHub Actions (fmt · validate) | 코드만 |
+| CI | GitHub Actions — fmt · validate · checkov · **OIDC plan** | **실행 검증** |
 | Region | ap-northeast-2 (Seoul) | — |
 | ~~Karpenter · CloudFront · Container Insights~~ | — | **미구현** |
 
@@ -182,7 +182,7 @@ aws-portfolio/
 - [x] GitHub Actions CI 실제 실행 — 첫 실행이 결함 2건 검출 (fmt 위반 · 하위 모듈 `required_providers` 누락)
 - [x] Terraform 원격 state (S3 + DynamoDB 잠금)
 - [x] **GitHub OIDC + PR 단위 `plan`** — 장기 액세스 키 없이 CI가 역할 수임, plan 결과를 잡 요약에 게시
-- [x] **checkov 정적 분석 (soft-fail) + [`security-baseline.md`](docs/security-baseline.md)** — 지적 17건 → **0건**(7건 수정 · 11건은 사유를 코드와 문서에 남기고 의도적으로 유지)
+- [x] **checkov 정적 분석 (soft-fail) + [`security-baseline.md`](docs/security-baseline.md)** — 지적 17건 → **0건**(6건 수정 · 11건은 사유를 코드에 남기고 의도적으로 유지)
 - [ ] CloudWatch Container Insights
 - [ ] Karpenter (replace managed node group)
 - [ ] CloudFront + S3
