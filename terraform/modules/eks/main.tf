@@ -166,8 +166,34 @@ resource "aws_iam_role" "alb_controller" {
   })
 }
 
+# ──────────────────────────────────────────────────────────────
+# ALB Controller IAM 정책 — 공식 정책을 저장소에 vendoring
+#
+# 🔴 이 리소스가 존재하는 이유는 2026-04 사이클의 실패 때문이다.
+# 당시 이 역할에는 관리형 `ElasticLoadBalancingFullAccess`만 붙어 있었다.
+# 이름만 보면 충분해 보이지만 그 정책에는 **EC2 조회 권한이 없다.**
+# 컨트롤러는 서브넷을 자동 탐색하기 위해 ec2:DescribeSubnets /
+# DescribeSecurityGroups / DescribeVpcs 와 iam:CreateServiceLinkedRole 이
+# 필요한데, 이것들이 빠져 있으면 **파드는 정상 기동하고 helm은 `deployed`를
+# 보고한 뒤, 첫 Ingress 조정 시점에서야 조용히 실패한다.**
+# 그 결과 ALB가 한 번도 만들어지지 않았고, 4개월 뒤 ELB 청구가 0건인 것을
+# 보고서야 알았다. 상세: docs/operations.md §1
+#
+# 정책 본문은 컨트롤러 프로젝트가 배포하는 공식 파일을 그대로 vendoring했다.
+#   출처: kubernetes-sigs/aws-load-balancer-controller
+#         v2.7.1/docs/install/iam_policy.json  (helm 차트 1.7.1의 appVersion)
+# 손으로 추린 최소 권한 대신 공식 정책을 쓰는 이유는, 이 컨트롤러의 권한
+# 요구가 버전마다 바뀌고 누락 시 위처럼 조용히 실패하기 때문이다.
+# 차트 버전을 올릴 때 이 JSON도 같은 태그에서 다시 받아야 한다.
+# ──────────────────────────────────────────────────────────────
+resource "aws_iam_policy" "alb_controller" {
+  name        = "${var.project_name}-alb-controller-policy"
+  description = "Official AWS Load Balancer Controller policy (vendored from v2.7.1)"
+  policy      = file("${path.module}/policies/alb-controller-iam-policy.json")
+}
+
 resource "aws_iam_role_policy_attachment" "alb_controller" {
-  policy_arn = "arn:aws:iam::aws:policy/ElasticLoadBalancingFullAccess"
+  policy_arn = aws_iam_policy.alb_controller.arn
   role       = aws_iam_role.alb_controller.name
 }
 
