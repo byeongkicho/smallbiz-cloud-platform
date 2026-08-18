@@ -19,7 +19,7 @@
 | RDS MySQL (db.t3.micro) | ✅ | **✅** | **38.42h 청구** (state 백업엔 미포착 — §아래) |
 | AWS Load Balancer Controller | ✅ | **설치만** | helm `deployed`. 그러나 **ALB는 생성되지 않았다** — ELB 청구 0건 |
 | ArgoCD | ✅ | **설치만** | helm `deployed`. `repoURL`이 placeholder여서 **동기화된 적 없음** |
-| HPA | ✅ | ❌ | metrics-server 미설치 |
+| HPA | ✅ | ❌ | metrics-server 를 코드에 추가(`helm_release.metrics_server`, plan 확인). **apply·동작 검증은 아직 안 했다** |
 | Karpenter · CloudFront · S3 · Container Insights | ❌ | — | **코드 0줄.** 아래 로드맵 참조 |
 
 **두 번 뒤집힌 판정이 이 표를 만든 이유다.** state에 `aws_db_instance`가 없어 "RDS 미생성"으로 결론 낼 뻔했으나 청구 데이터가 38.4시간 가동을 증명했고, 반대로 helm이 `deployed`라 "ALB 동작"으로 볼 뻔했으나 ELB 청구 0건이 미생성을 증명했다. **한 종류의 증거만 봤으면 양쪽 다 반대로 적혔을 것이다.**
@@ -48,7 +48,7 @@ ALB (AWS Load Balancer Controller + Ingress)   ⚠️ 컨트롤러는 설치됨,
   ↓
 EKS Cluster (Kubernetes 1.34)
   ├── App Pods (Deployment + Service)
-  └── HPA                                       ⚠️ metrics-server 미설치라 미동작
+  └── HPA                                       ⚠️ metrics-server 추가됨(plan) — apply 미검증
   ↓
 RDS MySQL (Private Subnet, db.t3.micro)
 
@@ -176,7 +176,9 @@ aws-portfolio/
 - [x] K8s Secrets (DB credentials) — `secret.yaml`은 gitignore
 - [x] ArgoCD **설치** — helm `deployed`
 - [ ] ArgoCD **Application 동기화** — `repoURL`이 placeholder여서 한 번도 동작한 적 없음 (수정 완료, 재검증 필요)
-- [ ] HPA 동작 — metrics-server 미설치
+- [ ] HPA 동작 — metrics-server 를 Terraform 에 추가(`plan` 확인, apply 미검증)
+  - metrics-server 가 없으면 HPA 가 `ScalingActive=False` 로 남고 **ArgoCD 가 그 HPA 를 Degraded 로 판정한다** — 파드가 정상이어도 Application 이 영구 `Synced/Degraded` 다. kind 실측: 제거 시 11초 만에 Degraded, 재설치 시 47초 만에 Healthy 복귀
+- [ ] 시크릿을 GitOps 안으로 — 현재 `secretRef` 에 `optional: true` 를 걸어 두었다(`secret.yaml` 이 gitignore 라 원격에 없기 때문). **오타가 조용히 통과하는 대가를 감수한 임시 조치**이고, 앱이 그 값을 실제로 읽는 커밋에서 걷어내야 한다. 제대로 된 해법은 **External Secrets Operator 가 AWS Secrets Manager 에서 IRSA 로 당겨오는 것** — IRSA 는 이 클러스터에 이미 있다
 
 ### Phase 3 📋 — Operations & Observability
 - [x] GitHub Actions CI 실제 실행 — 첫 실행이 결함 2건 검출 (fmt 위반 · 하위 모듈 `required_providers` 누락)
