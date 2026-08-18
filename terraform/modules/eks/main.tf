@@ -157,9 +157,19 @@ resource "aws_iam_role" "alb_controller" {
         Federated = aws_iam_openid_connect_provider.eks.arn
       }
       Action = "sts:AssumeRoleWithWebIdentity"
+      # sub 와 aud 를 함께 고정한다.
+      #
+      # sub 만 걸면 이 클러스터의 OIDC 공급자가 발급한 토큰 중 대상(aud)이
+      # 다른 것까지 수임에 쓰일 수 있다. 서비스 계정 토큰은 용도별로 다른
+      # audience 로 발급될 수 있으므로, STS 용으로 발급된 토큰만 받도록
+      # aud = sts.amazonaws.com 을 명시한다.
+      #
+      # 같은 기준을 GitHub Actions OIDC(terraform/bootstrap)에도 적용했다.
+      # 한쪽에만 적용하면 그 자체가 리뷰에서 질문거리가 된다.
       Condition = {
         StringEquals = {
           "${replace(aws_eks_cluster.main.identity[0].oidc[0].issuer, "https://", "")}:sub" = "system:serviceaccount:kube-system:aws-load-balancer-controller"
+          "${replace(aws_eks_cluster.main.identity[0].oidc[0].issuer, "https://", "")}:aud" = "sts.amazonaws.com"
         }
       }
     }]
