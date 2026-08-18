@@ -207,6 +207,33 @@ resource "aws_iam_role_policy_attachment" "alb_controller" {
   role       = aws_iam_role.alb_controller.name
 }
 
+# metrics-server — HPA 의 전제이자 ArgoCD 헬스 판정의 전제다.
+#
+# 이것이 없으면 HPA 가 `ScalingActive=False` (FailedGetResourceMetric) 로 남고,
+# ArgoCD 는 그 HPA 를 Degraded 로 판정한다. 즉 파드가 2/2 Running 이고 앱이
+# 정상 응답해도 **Application 은 영구 Synced/Degraded** 다.
+# k8s/app/hpa.yaml 이 Application 의 동기화 경로(path: k8s/app) 안에 있으므로 해당된다.
+#
+# kind 실측(2026-08-18): 제거 → 11초 만에 Healthy→Degraded / 재설치 → 47초 만에 복귀.
+# EKS 는 metrics-server 가 기본 탑재가 아니다(Auto Mode 제외) → 명시적으로 설치한다.
+#
+# ⚠️ `--kubelet-insecure-tls` 를 넣지 말 것. 그건 kind 노드의 자체서명 kubelet 인증서
+#    때문에 필요한 로컬 전용 플래그이고, EKS 에 넣으면 TLS 검증을 스스로 끄는 것이 된다.
+resource "helm_release" "metrics_server" {
+  name       = "metrics-server"
+  repository = "https://kubernetes-sigs.github.io/metrics-server/"
+  chart      = "metrics-server"
+  namespace  = "kube-system"
+  version    = "3.12.1"
+
+  set {
+    name  = "replicas"
+    value = "1"
+  }
+
+  depends_on = [aws_eks_node_group.bootstrap]
+}
+
 resource "helm_release" "alb_controller" {
   name       = "aws-load-balancer-controller"
   repository = "https://aws.github.io/eks-charts"
