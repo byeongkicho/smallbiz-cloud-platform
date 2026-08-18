@@ -15,7 +15,9 @@
 
 **근본 원인**: IRSA 역할에 `ElasticLoadBalancingFullAccess` 관리형 정책만 붙어 있었다. AWS Load Balancer Controller는 서브넷을 자동 탐색하기 위해 `ec2:DescribeSubnets`·`ec2:DescribeSecurityGroups`·`ec2:DescribeVpcs`와 `iam:CreateServiceLinkedRole`이 필요한데 그 정책엔 EC2 권한이 없다. 컨트롤러는 기동엔 성공하고 **첫 Ingress 조정 시점에 실패**한다.
 
-**조치**: 공식 [`iam_policy.json`](https://github.com/kubernetes-sigs/aws-load-balancer-controller/blob/main/docs/install/iam_policy.json)을 저장소에 vendoring하고 `aws_iam_policy`로 교체 (예정 — 재검증 시).
+**조치 (2026-08-18, 코드 완료 · 실동작 미검증)**: 관리형 `ElasticLoadBalancingFullAccess`를 떼고, 컨트롤러 프로젝트의 공식 정책을 [`terraform/modules/eks/policies/alb-controller-iam-policy.json`](../terraform/modules/eks/policies/alb-controller-iam-policy.json)으로 **저장소에 vendoring**해 `aws_iam_policy`로 교체했다(출처 `v2.7.1/docs/install/iam_policy.json` — helm 차트 1.7.1의 appVersion에 맞춘 태그 고정). 진단에서 지목한 네 권한(`ec2:DescribeSubnets`·`DescribeSecurityGroups`·`DescribeVpcs`·`iam:CreateServiceLinkedRole`)이 이 정책에 모두 포함된 것을 확인했다. 손으로 최소 권한을 추리는 대신 공식 정책을 쓰는 이유는, **권한 요구가 버전마다 바뀌고 누락 시 위처럼 조용히 실패**하기 때문이다 — 차트를 올릴 때 이 JSON도 같은 태그에서 다시 받아야 한다.
+
+🔴 **다만 이것으로 ALB가 실제로 뜨는지는 아직 확인하지 않았다.** 이 건의 교훈이 정확히 '설치 성공 ≠ 동작 검증'이므로, README 검증 수준 표의 `설치만` 표기는 **Ingress가 실제 ALB를 만들고 HTTP 200을 반환하는 것을 본 뒤에** 바꾼다.
 
 **교훈**: **설치 성공은 동작 검증이 아니다.** 컨트롤러류는 "설치됨"과 "권한이 있어 실제로 리소스를 만듦" 사이에 간극이 있고, 그 간극은 첫 조정(reconcile) 때만 드러난다.
 
