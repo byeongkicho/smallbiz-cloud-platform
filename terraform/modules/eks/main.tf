@@ -30,6 +30,12 @@ resource "aws_iam_role_policy_attachment" "eks_vpc_resource_controller" {
 # EKS Cluster
 # ──────────────────────────────────────
 resource "aws_eks_cluster" "main" {
+  # 아래 4건은 checkov가 지적하지만 이 저장소에서는 의도적으로 두었다.
+  # 항목별 근거는 docs/security-baseline.md.
+  #checkov:skip=CKV_AWS_58:EKS Secrets 암호화용 KMS 키는 상시 과금 + 삭제 대기 7~30일이라 apply/destroy 반복과 맞지 않는다
+  #checkov:skip=CKV_AWS_37:제어 플레인 전체 로그를 CloudWatch로 보내면 수집·보관이 상시 과금된다
+  #checkov:skip=CKV_AWS_39:퍼블릭 엔드포인트를 끄면 bastion/VPN 없이 kubectl이 불가능해 PoC 운영 자체가 막힌다
+  #checkov:skip=CKV_AWS_38:위와 같은 이유. 프로덕션이라면 사무실 고정 IP로 CIDR을 좁히는 것이 정답이다
   name     = "${var.project_name}-eks"
   role_arn = aws_iam_role.eks_cluster.arn
   version  = var.cluster_version

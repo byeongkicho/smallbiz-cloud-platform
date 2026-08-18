@@ -109,7 +109,8 @@ aws-portfolio/
 ├── CONTRIBUTING.md
 ├── .gitignore
 ├── docs/
-│   ├── cost-analysis.md                 # Monthly cost breakdown + trade-offs
+│   ├── cost-analysis.md                 # 실청구 역산 단가 · 확장지원 할증 분석
+│   ├── security-baseline.md             # checkov 결과 + 고친 것/남긴 것의 근거
 │   ├── operations.md                    # 실제로 겪은 장애와 원인
 │   └── evidence/                        # state·청구 데이터 기반 1차 근거
 ├── terraform/
@@ -181,7 +182,7 @@ aws-portfolio/
 - [x] GitHub Actions CI 실제 실행 — 첫 실행이 결함 2건 검출 (fmt 위반 · 하위 모듈 `required_providers` 누락)
 - [x] Terraform 원격 state (S3 + DynamoDB 잠금)
 - [x] **GitHub OIDC + PR 단위 `plan`** — 장기 액세스 키 없이 CI가 역할 수임, plan 결과를 잡 요약에 게시
-- [ ] checkov 정적 분석 (soft-fail) + `security-baseline.md`
+- [x] **checkov 정적 분석 (soft-fail) + [`security-baseline.md`](docs/security-baseline.md)** — 지적 17건 → **0건**(7건 수정 · 11건은 사유를 코드와 문서에 남기고 의도적으로 유지)
 - [ ] CloudWatch Container Insights
 - [ ] Karpenter (replace managed node group)
 - [ ] CloudFront + S3

@@ -64,3 +64,48 @@ jobs:
           cd bootstrap
           terraform init -backend=false
           terraform validate
+
+      # ──────────────────────────────────────────────────────────
+      # checkov 정적 분석 — soft-fail
+      #
+      # 잡을 실패시키지 않는다. checkov 기본 정책은 엔터프라이즈 프로덕션
+      # 기준이라 PoC 저장소에 그대로 적용하면 CI가 상시 빨강이 되고,
+      # 상시 빨강인 게이트는 아무도 보지 않는다 — 신호가 죽는다.
+      # 대신 결과를 잡 요약에 게시해 "변화"가 눈에 띄게 한다.
+      # 무엇을 고쳤고 무엇을 왜 남겼는지는 docs/security-baseline.md.
+      #
+      # 서드파티 액션을 쓰지 않는다(terraform-plan.yaml과 같은 방침).
+      # ──────────────────────────────────────────────────────────
+      - name: Checkov (static analysis, soft-fail)
+        id: checkov
+        working-directory: .
+        run: |
+          set -euo pipefail
+          python3 -m pip install --quiet --disable-pip-version-check checkov
+          # --soft-fail: 지적이 있어도 종료코드 0
+          checkov -d terraform --framework terraform --compact --soft-fail \
+            | tee checkov.txt
+
+      - name: Publish checkov summary
+        if: always()
+        working-directory: .
+        run: |
+          {
+            echo '## Checkov'
+            echo
+            if [ -f checkov.txt ]; then
+              grep -E 'Passed checks:|Failed checks:|Skipped checks:' checkov.txt || true
+              echo
+              echo '<details><summary>전체 출력</summary>'
+              echo
+              echo '```'
+              head -c 400000 checkov.txt
+              echo '```'
+              echo
+              echo '</details>'
+            else
+              echo '(checkov 출력 없음 — 앞 스텝이 실패했다)'
+            fi
+            echo
+            echo '고친 것과 의도적으로 남긴 것: [`docs/security-baseline.md`](docs/security-baseline.md)'
+          } >> "$GITHUB_STEP_SUMMARY"
