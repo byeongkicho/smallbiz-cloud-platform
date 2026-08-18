@@ -1,90 +1,115 @@
-# Cost Analysis
+# 비용 분석
 
-> SMB-focused infrastructure must justify every line item. This document breaks down monthly cost for the current architecture (Phase 1 + 2), the deliberate trade-offs taken to reduce cost, and disciplined-PoC operating patterns that bring monthly burn well below steady-state.
+> 소규모 기업 인프라는 항목마다 근거가 있어야 한다. 이 문서는 **추정치와 실측치를 분리해서** 적는다.
+> 실측 단가는 2026-04 사이클의 **실제 청구서에서 역산**했다 — 원문은 [`evidence/2026-04-apply-cycle.md`](evidence/2026-04-apply-cycle.md).
 
-## Region & assumptions
+## 리전과 단가 출처
 
-- Region: `ap-northeast-2` (Seoul)
-- Pricing reference: AWS public pricing as of 2026-Q2 (USD)
-- All figures **estimates** — actual cost depends on traffic, data transfer, and ongoing storage growth.
+- 리전: `ap-northeast-2` (서울)
+- **아래 표의 단가는 대부분 실청구서에서 역산한 값이다.** 공개 가격표를 옮겨 적은 것이 아니다.
+- ⚠️ **이 문서의 이전 판은 단가가 us-east-1 기준이라 틀렸다.** t3.medium을 $0.0416/h(버지니아)로 잡았으나 서울은 $0.0520/h이고, NAT도 $0.045 대 $0.059로 달랐다. 서울 리전 프로젝트에 버지니아 단가를 쓰면 **월 추정이 13% 낮게 나온다.**
 
-## Steady-state monthly estimate (24×7 operation)
+## 실측 단가 (2026-04 청구서 역산)
 
-| Component | Spec | Est. monthly |
-|---|---|---:|
-| EKS control plane | 1 cluster (always-on) | $73 |
-| EC2 worker nodes | 2 × `t3.medium` (managed node group) | ~$60 |
-| NAT Gateway | **single AZ** (cost trade-off) | ~$32 |
-| ALB | 1 (low traffic baseline) | ~$16 |
-| RDS | `db.t3.micro` MySQL 8.0, single-AZ, 20GB gp3 | ~$12 |
-| EBS volumes | gp3 for nodes + RDS storage | ~$5 |
-| Data transfer / misc | NAT + ALB egress at low traffic | ~$10 |
-| **Total** | | **~$210 / month** |
+| 사용 유형 | 실사용량 | 실청구 | **역산 단가** |
+|---|---:|---:|---:|
+| `AmazonEKS-Hours:perCluster` | 43.127 h | $4.3127 | **$0.100 /h** |
+| `AmazonEKS-Hours:extendedSupport` | 43.127 h | $21.5633 | **$0.500 /h** (할증분) |
+| `BoxUsage:t3.medium` | 82.124 h | $4.2705 | **$0.052 /h** |
+| `NatGateway-Hours` | 44.000 h | $2.5960 | **$0.059 /h** |
+| `InstanceUsage:db.t3.micro` | 38.418 h | $0.9989 | **$0.026 /h** |
+| `PublicIPv4:InUseAddress` | 43.148 h | $0.2157 | **$0.005 /h** |
+| `NatGateway-Bytes` | 1.691 GB | $0.0998 | **$0.059 /GB** |
+| `EBS:VolumeUsage.gp3` | 2.282 GB-월 | $0.2081 | **$0.091 /GB-월** |
+| `RDS:GP3-Storage` | 1.067 GB-월 | $0.1398 | **$0.131 /GB-월** |
+| | | **$34.48** | |
 
-> This is the "always running" cost. The PoC operating pattern below brings the realized monthly cost to **~$30–50** for active learning and demo purposes.
+ALB만 실측이 없다 — **이 사이클에서 로드밸런서가 한 번도 만들어지지 않았기 때문이다**(ELB 청구 0건). 아래 표의 ALB 값은 공개 가격표를 쓴 **추정치**다.
 
-## Deliberate cost trade-offs (with risk acknowledged)
+## 상시 가동 시 월 비용 (730h 기준)
 
-| Decision | Saving (vs reference) | Acknowledged risk |
-|---|---|---|
-| **Single NAT Gateway** instead of AZ-per-NAT | ~$32 / month | If the AZ housing the NAT fails, all private-subnet egress drops. Acceptable for PoC; production would dual-AZ. |
-| **`t3.medium` nodes** instead of `t3.large` baseline | ~$60 / month | Less headroom; HPA + Karpenter (Phase 3) compensate. |
-| **`db.t3.micro` RDS** instead of `db.t3.small` | ~$12 / month | Limited memory; suitable for SMB workloads, scale up when CPU/memory pressure observed. |
-| **Single-AZ RDS** instead of Multi-AZ | ~$12 / month | RTO is restore-from-snapshot rather than auto-failover. Acceptable for non-mission-critical workloads. |
-| **`.terraform.lock.hcl` committed**; no remote backend yet | $0 (saves S3+DynamoDB cost) | Single-developer assumption. Move to S3 + DynamoDB lock once team grows. |
+| 구성요소 | 사양 | 근거 | 월 비용 |
+|---|---|:-:|---:|
+| EKS 제어 플레인 | 1 클러스터, **표준 지원 버전** | 실측 | $73.00 |
+| EC2 워커 노드 | `t3.medium` × 2 | 실측 | $75.92 |
+| NAT 게이트웨이 (시간) | 단일 AZ | 실측 | $43.07 |
+| RDS | `db.t3.micro` MySQL, 단일 AZ | 실측 | $18.98 |
+| ALB | 1개, 저트래픽 | *추정* | $16.43 |
+| EBS gp3 | 노드 2×20GB + RDS 20GB | 실측 | $8.09 |
+| 공인 IPv4 | NAT용 1개 | 실측 | $3.65 |
+| NAT 데이터 처리 | 월 50GB 가정 | 실측 단가 | $2.95 |
+| **합계** | | | **≈ $242 / 월** |
 
-## Disciplined PoC operating pattern (recommended for portfolio learning)
+> 이전 판의 `~$210`은 us-east-1 단가에서 나온 수치다. 서울 기준 실제는 **약 15% 높다.**
 
-Rather than running the full architecture 24×7 (~$210/month), this pattern uses on-demand cycles:
+## 🔴 가장 비싼 항목은 리소스가 아니라 버전이었다
+
+같은 청구서에서 확인된 사실이다.
 
 ```
-Daily learning session
-  ├─ terraform apply              (~3–5 min wait)
-  ├─ kubectl / argocd / app work  (1–4 hours active)
-  └─ terraform destroy            (~5–10 min wait)
+perCluster        43.127h × $0.10 = $ 4.31
+extendedSupport   43.127h × $0.50 = $21.56   ← 버전을 안 올려서 낸 돈
+                                     ------
+EKS 합계                             $25.88
+총 청구액 $34.48 중 63%
 ```
 
-### Monthly cost under this pattern
+클러스터가 1.30에서 생성돼 1.31로 in-place 업그레이드됐는데, **2026-04 시점에 두 버전 모두 표준 지원이 끝난 상태**였다. 리소스를 하나도 더 쓰지 않고 발생한 비용이고, 표준 지원 버전이었다면 총액은 **$12.92**였다.
 
-- Active hours: assume 8 sessions × 3h = ~24h/month of cluster running
-- EKS control plane: 24h × $0.10 = $2.40
-- EC2 nodes: ~$2 (Spot-ready setup further reduces this)
-- NAT Gateway hourly cost during active hours: ~$1
-- ALB during active hours: <$1
-- RDS: deletion + snapshot pattern, ~$3 for snapshots + minimal active hours
-- Data transfer: minimal at this duty cycle, <$5
-- **Estimated total: ~$15–25 / month** in this learning mode
+상시 가동으로 환산하면 차이가 더 커진다.
 
-### What enables this pattern
+| | EKS 제어 플레인 | 월 총액 |
+|---|---:|---:|
+| 표준 지원 버전 | $73 | **≈ $242** |
+| 확장 지원 버전 | **$438** | **≈ $607** |
 
-- **Modular Terraform** — `terraform destroy` cleanly removes all resources (modules: `vpc`, `eks`, `rds`)
-- **Stateless app pattern** — namespace + manifests can be re-applied via ArgoCD on each new cluster
-- **External state intentionally not yet centralized** — single-developer PoC; remote backend recommended for shared work
+**월 $365의 차이가 코드 한 줄(`eks_cluster_version`)에서 나온다.** 그래서 이 값은 `variables.tf`에 근거 주석과 함께 고정해 뒀고, 현재 `1.34`(표준 지원 종료 2026-12-02)로 통일돼 있다. 이 사이클 당시에는 같은 값이 네 곳에서 서로 달랐다(`variables.tf` 1.29 / `tfvars.example` 1.31 / README 1.31 / 실제 가동 1.30→1.31).
 
-## Hidden / often-missed costs to watch
+## 의도한 트레이드오프
 
-- **NAT Gateway data processing** ($0.045/GB) — adds up fast under chatty workloads. VPC endpoints for S3/ECR mitigate.
-- **EKS control plane is always-on once `apply`** — $0.10/hour billing starts immediately. Always pair `apply` with a `destroy` plan.
-- **EBS snapshots** linger after `destroy` if not explicitly cleaned (RDS snapshot retention in particular).
-- **Unused ALB** if you forgot a Service of type LoadBalancer or an Ingress without target — still billed monthly.
-- **Data transfer between AZs** — ~$0.01/GB; minor at small scale but can dominate at high traffic.
+| 결정 | 절감 | 감수한 위험 |
+|---|---:|---|
+| **단일 NAT 게이트웨이** (AZ당 1개 대신) | $43 / 월 | NAT가 있는 AZ 장애 시 프라이빗 서브넷 이그레스 전체 중단. PoC에서는 수용, 프로덕션은 이중화 |
+| **`t3.medium`** (t3.large 대신) | $76 / 월 | 여유 용량 적음. HPA로 대응하되 **HPA는 metrics-server 미설치로 미검증**(README 검증표 참조) |
+| **단일 AZ RDS** (Multi-AZ 대신) | $19 / 월 | 자동 페일오버가 아니라 스냅샷 복구. RTO를 감수 |
+| **`db.t3.micro`** (t3.small 대신) | $19 / 월 | 메모리 제약. CPU/메모리 압력이 관측되면 상향 |
 
-## Monitoring cost (planned for Phase 3)
+## PoC 운영 패턴 — 그리고 실제로 실패한 지점
 
-- AWS Budgets alert at 50% / 80% / 100% of monthly target ($30 PoC, $250 steady)
-- Cost Explorer "Service" + "Tag" grouping (`project=smallbiz-platform`, `environment=dev`)
-- (Optional) Karpenter consolidation policy → idle nodes auto-removed
+상시 가동(월 $242) 대신 필요할 때만 올리고 내리는 패턴을 전제로 설계했다.
 
-## Key takeaways
+```
+apply → 작업(1~4h) → destroy
+```
 
-1. **The architecture itself is SMB-affordable** at ~$210/month if always-on; the trade-offs above keep it that way.
-2. **Disciplined PoC operation** (apply / work / destroy) brings learning cost down by ~10×.
-3. **NAT, EKS control plane, ALB** are the recurring fixed costs — these are the items where cost-conscious decisions matter most.
-4. **Multi-AZ everything** doubles fixed-cost lines; intentional single-AZ in dev with planned dual-AZ in production is a defensible SMB pattern.
+**의도는 3~4시간 세션이었고, 실제로는 43.13시간이 청구됐다.** 04-01 02:28Z에 생성해 04-02 21:35Z에 destroy가 끝났다. 이 패턴의 리스크는 시간당 단가가 아니라 **끄는 것을 잊는 것**이다.
 
-## Future cost optimizations (Phase 3 candidates)
+| 방치 시간 | 비용 (표준 지원 기준) |
+|---|---:|
+| 3시간 세션 | ≈ $1.0 |
+| 24시간 | ≈ $8.2 |
+| 30일 | **≈ $242** |
 
-- **Karpenter** with consolidation + Spot — typically 50–70% savings on EC2 vs. managed node group at small scale
-- **VPC endpoints** for S3 / ECR / STS — eliminates NAT data charges for these services
-- **Fargate** for some workloads — eliminates EC2 management overhead, useful for sporadic workloads
-- **CloudFront in front of ALB** — caches static assets, reducing ALB processed GB
+그래서 이 저장소는 destroy를 사람의 기억에 맡기지 않는다 — [`../scripts/verify-empty.sh`](../scripts/verify-empty.sh)가 16개 항목을 전수 조회해 잔존 리소스를 확인한다. 2026-08-15 기준 서울 리전 잔존 **0건**.
+
+## 놓치기 쉬운 비용
+
+- **EKS 확장 지원 할증** — 위 참조. 이 사이클에서 실제로 가장 비쌌던 항목이다
+- **EKS 제어 플레인은 `apply` 즉시 과금 시작** — 노드가 없어도 시간당 청구된다
+- **NAT 데이터 처리** ($0.059/GB) — 컨테이너 이미지를 자주 당기면 빠르게 누적. S3/ECR VPC 엔드포인트로 우회 가능
+- **컨트롤러가 만든 ALB는 Terraform state 밖에 있다** — `destroy` 후에도 남아 계속 과금되고, VPC 삭제까지 막는다. 삭제 순서는 [`operations.md §7-1`](operations.md) 참조
+- **RDS 스냅샷**은 인스턴스 삭제 후에도 남는다
+- **공인 IPv4**는 2024년부터 유휴 여부와 무관하게 과금($0.005/h)
+
+## 비용 관측 (미구현)
+
+- AWS Budgets 알림 (월 목표의 50/80/100%)
+- Cost Explorer를 `project=smallbiz-platform` 태그로 그룹핑 — `default_tags`로 전 리소스에 부착돼 있어 즉시 가능
+- ⚠️ Karpenter 통합·Spot 전환은 **코드가 없다**(README 검증표의 "코드 0줄" 항목). 여기 적는 것은 로드맵이지 구현이 아니다
+
+## 요약
+
+1. **단가는 리전마다 다르다.** us-east-1 표를 서울 프로젝트에 쓰면 15% 과소 추정된다
+2. **가장 비싼 줄이 가장 큰 리소스가 아닐 수 있다** — 이 사이클에서는 버전 지연 할증이 청구액의 63%였다
+3. 고정비의 중심은 **EKS 제어 플레인 · NAT · 노드** 셋이고, 비용 판단은 여기서 갈린다
+4. PoC 운영의 진짜 리스크는 시간당 요금이 아니라 **종료 확인의 부재**다
