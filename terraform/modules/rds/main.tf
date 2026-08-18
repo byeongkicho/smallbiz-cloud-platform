@@ -19,7 +19,10 @@ resource "aws_security_group" "rds" {
 
   # 규칙뿐 아니라 보안 그룹 자체에도 설명이 필요하다 (checkov CKV_AWS_23).
   # SG 목록만 봤을 때 무엇을 위한 것인지 읽히게 하는 것이 목적이다.
-  description = "RDS MySQL — VPC 내부에서 3306만 수신"
+  # 영문으로 쓴다 — SG description은 IAM보다 좁은 문자셋만 받는다
+  # (^[0-9A-Za-z_ .:/()#,@\[\]+=&;{}!$*-]*$). 한글을 넣으면 plan에서 죽는다.
+  # validate는 통과시키고 plan에서만 잡힌다 (실측, 2026-08-18)
+  description = "RDS MySQL - accepts 3306 from within the VPC only"
 
   # Allow MySQL/Aurora from VPC only
   ingress {
@@ -38,7 +41,7 @@ resource "aws_security_group" "rds" {
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = [var.vpc_cidr]
-    description = "VPC 내부로만 허용 — RDS는 외부로 연결을 열지 않는다"
+    description = "VPC internal only - RDS does not initiate outbound"
   }
 
   tags = {
