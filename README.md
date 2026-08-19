@@ -59,7 +59,7 @@ RDS MySQL (Private Subnet, db.t3.micro)
 
 **로드맵 (코드 없음 — 다이어그램에 그리지 않는다)**: CloudFront + S3 · Karpenter · CloudWatch Container Insights · Multi-AZ NAT
 
-> 관측성(Prometheus / Grafana / 알림 / SLO)은 이 저장소가 아니라 **실제 운영 중인 서비스**에 있다 → [Gluten-Free_Korea `terraform/` · `monitoring/`](https://github.com/byeongkicho/Gluten-Free_Korea/tree/main/terraform) — 자체 제작 익스포터(지표 15종) → Grafana Cloud → 10패널 대시보드 + 알림 5룰, 전부 Terraform 관리.
+> 관측성(Prometheus / Grafana / 알림 / SLO)은 이 저장소가 아니라 **실제 운영 중인 서비스**에 있다 → [Gluten-Free_Korea `terraform/` · `monitoring/`](https://github.com/byeongkicho/Gluten-Free_Korea/tree/main/terraform) — 자체 제작 익스포터(지표 16종) → Grafana Cloud → 10패널 대시보드 + 알림 룰(운영 6룰 중 5룰 Terraform 관리 — 나머지 1룰 통합은 해당 저장소 README 참조).
 
 ## 🛠 Tech Stack
 

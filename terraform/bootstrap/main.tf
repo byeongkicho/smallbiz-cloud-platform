@@ -79,8 +79,9 @@ resource "aws_iam_role" "gha_terraform_plan" {
 # 필요하다. 이 구성 하나만 해도 VPC·EKS·IAM·RDS·EC2에 걸쳐 있어, 최소권한 정책을
 # 손으로 쓰면 plan이 권한 부족으로 깨지는 쪽이 훨씬 잦다.
 #
-# 그래서 관리형 ReadOnlyAccess를 쓰되, **쓰기 권한을 한 줄도 주지 않는 것**으로
-# 안전성을 확보한다. 이 역할로는 apply가 성공할 수 없다.
+# 그래서 관리형 ReadOnlyAccess를 쓰되, 리소스 쓰기 권한을 주지 않는 것으로
+# 안전성을 확보한다. 유일한 쓰기는 아래 권한②의 state 잠금(DynamoDB Put/Delete)
+# 뿐이고, s3:PutObject가 없어 state를 덮어쓸 수 없으며 apply는 성공할 수 없다.
 # 트레이드오프는 이 디렉터리의 README.md에 기록.
 # ──────────────────────────────────────────────────────────────
 resource "aws_iam_role_policy_attachment" "read_only" {
