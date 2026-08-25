@@ -32,11 +32,18 @@ A career-transition portfolio: from a social-work undergrad to infrastructure en
 
 The "small business" framing matters. Most cloud architecture content assumes either FAANG-scale problems or hello-world demos. SMBs sit between: they need real availability, IaC, GitOps, and observability — but every line item must justify its monthly cost.
 
-What this project demonstrates:
+What this project demonstrates — 네 축이고, 각 축마다 1차 근거 문서가 있다:
 
-- **모듈 단위 Terraform** — `vpc` / `eks` / `rds` 분리, IRSA(OIDC), 관리형 노드그룹
-- **비용 판단을 문서로** — 단일 AZ NAT, `db.t3.micro`, 그리고 🔴 **청구서 $34.48 중 $21.56(63%)이 EKS 확장 지원 할증**이었다는 실측. 리소스를 더 쓴 게 아니라 **버전을 안 올려서 낸 돈**이다 ([`docs/cost-analysis.md`](docs/cost-analysis.md))
-- **destroy까지가 인프라 코드** — serial 93 / 리소스 0으로 완결, 잔존 고아 리소스 0건
+| 축 | 무엇을 했나 | 문서 |
+|---|---|---|
+| **IaC 자동화** | `vpc`/`eks`/`rds` 모듈 분리, IRSA(OIDC), 관리형 노드그룹. **PR마다 `terraform plan`을 게시**하고 CI 역할엔 apply 권한이 없다 — 저장소에 장기 AWS 키가 **0개** | [`bootstrap/README.md`](terraform/bootstrap/README.md) |
+| **보안 통제** | checkov 지적 **17건 → 0건**(6건 수정 · 11건은 사유를 코드에 남기고 유지). 방치돼 있던 **VPC 기본 보안그룹을 관리에 편입해 규칙 전부 제거**. OIDC `sub`를 와일드카드 없이 고정해 `CKV_AWS_393` **PASSED** | [`security-baseline.md`](docs/security-baseline.md) |
+| **ISMS-P 자가 매핑** | 위 통제를 인증기준에 대응 — **충족 7 · 미충족 4**. ⚠️인증 대응 실적이 아니라 **갭 분석**이다. 미충족 4건 중 3건이 "상시 과금"이라는 **같은 이유**로 빠졌다는 편중을 이 매핑으로 발견했다 | [`isms-mapping.md`](docs/isms-mapping.md) |
+| **FinOps** | 🔴 청구서 $34.48 중 **$21.56(63%)이 EKS 확장 지원 할증**이었다는 실측. 리소스를 더 쓴 게 아니라 **버전을 안 올려서 낸 돈**이다 | [`cost-analysis.md`](docs/cost-analysis.md) |
+
+그리고 운영 쪽으로 두 가지:
+
+- **destroy까지가 인프라 코드** — serial 93 / 리소스 0으로 완결, 잔존 고아 리소스 0건. 종료 판정은 **셋 다** 만족해야 한다(state · 리소스 조회 · **다음날 청구 $0**) → [`docs/runbook.md`](docs/runbook.md)
 - **틀린 것을 틀렸다고 적기** — [`docs/operations.md`](docs/operations.md)
 
 ## 📐 Architecture — 실제로 코드가 있는 것만
@@ -111,7 +118,9 @@ aws-portfolio/
 ├── docs/
 │   ├── cost-analysis.md                 # 실청구 역산 단가 · 확장지원 할증 분석
 │   ├── security-baseline.md             # checkov 결과 + 고친 것/남긴 것의 근거
-│   ├── operations.md                    # 실제로 겪은 장애와 원인
+│   ├── isms-mapping.md                  # 위 통제 → ISMS-P 인증기준 자가 매핑 (충족 7 · 미충족 4)
+│   ├── runbook.md                       # 사이클 표준 절차 — pre-flight · teardown 순서 · 종료 판정 3관문
+│   ├── operations.md                    # 실제로 겪은 장애와 원인 (사후 기록)
 │   └── evidence/                        # state·청구 데이터 기반 1차 근거
 ├── terraform/
 │   ├── main.tf                          # Module composition
