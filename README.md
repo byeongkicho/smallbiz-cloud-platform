@@ -19,6 +19,7 @@
 | RDS MySQL (db.t3.micro) | ✅ | **✅** | **38.42h 청구** (state 백업엔 미포착 — §아래) |
 | AWS Load Balancer Controller | ✅ | **설치만** | helm `deployed`. 그러나 **ALB는 생성되지 않았다** — ELB 청구 0건 |
 | ArgoCD | ✅ | **설치만** | helm `deployed`. `repoURL`이 placeholder여서 **동기화된 적 없음** |
+| EKS 업그레이드 정책 `STANDARD` + 버전 수명주기 검사 | ✅ | ❌ | provider 스키마·`plan`에서 `support_type = "STANDARD"` 확인(2026-09-28). **apply는 안 했다** — [`docs/cost-analysis.md` §재발 방지](docs/cost-analysis.md) |
 | HPA | ✅ | ❌ | metrics-server 를 코드에 추가(`helm_release.metrics_server`, plan 확인). **apply·동작 검증은 아직 안 했다** |
 | Karpenter · CloudFront · S3 · Container Insights | ❌ | — | **코드 0줄.** 아래 로드맵 참조 |
 
@@ -161,6 +162,7 @@ aws-portfolio/
 |---|---|---|
 | `terraform-validate.yaml` | 없음 | fmt·문법·모듈 유효성. fork PR에서도 돈다 |
 | `terraform-plan.yaml` | **OIDC 단기 토큰** | 실제 계정과 코드의 차이 (`plan` 결과를 잡 요약에 게시) |
+| `eks-version-check.yaml` | 없음 | EKS 버전의 표준 지원 종료일 — PR마다 + **매주 정기 실행**(날짜가 지나면 코드가 그대로여도 결과가 바뀐다) |
 
 **저장소에 장기 AWS 액세스 키가 없다.** GitHub OIDC 공급자를 신뢰하고, 워크플로는 실행
 1건당 단기 토큰으로 IAM 역할을 수임한다. 신뢰 정책의 `sub`는 이 저장소의
