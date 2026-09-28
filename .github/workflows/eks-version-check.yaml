@@ -1,0 +1,39 @@
+name: EKS Version Lifecycle
+
+# EKS 버전의 표준 지원 종료일을 코드로 감시한다 — scripts/check_eks_version.py.
+# AWS 자격증명이 필요 없다(종료일 표는 스크립트 안의 데이터).
+#
+# 🔑 PR 때만 돌리면 부족하다. 이 검사는 **코드가 아니라 날짜가 바뀌어도** 결과가 바뀐다.
+#    아무도 PR 을 열지 않는 동안 종료일이 지나가면 아무도 모른다 — 2026-04 할증이 정확히 그 경로였다.
+#    그래서 매주 정기 실행한다. 정기 실행이 실패하면 GitHub 가 저장소 주인에게 메일을 보낸다.
+# ⚠️ 공개 저장소의 schedule 은 60일간 저장소 활동이 없으면 GitHub 가 자동으로 끈다.
+
+on:
+  pull_request:
+    paths:
+      - 'terraform/**'
+      - 'scripts/check_eks_version.py'
+      - '.github/workflows/eks-version-check.yaml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'terraform/**'
+      - 'scripts/check_eks_version.py'
+  schedule:
+    - cron: '0 0 * * 1'   # 매주 월요일 00:00 UTC (KST 09:00)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: standard support window
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check EKS version lifecycle
+        run: python3 scripts/check_eks_version.py

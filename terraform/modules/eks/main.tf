@@ -46,6 +46,18 @@ resource "aws_eks_cluster" "main" {
     endpoint_public_access  = true
   }
 
+  # 표준 지원이 끝나면 확장 지원(제어 플레인 시간당 $0.10 → $0.60)으로 넘어가지 않고
+  # 다음 버전으로 자동 업그레이드되게 한다. 명시하지 않으면 기본값이 EXTENDED 다(AWS 문서).
+  # 2026-04 사이클의 청구액 63%가 바로 이 할증이었다 — docs/cost-analysis.md.
+  #
+  # ⚠️ 자동 업그레이드가 일어나면 실제 클러스터 버전이 코드(var.cluster_version)보다 앞선다.
+  #    그 상태에서 plan 은 다운그레이드를 시도하고, EKS 는 다운그레이드를 받지 않아 실패한다.
+  #    그래서 CI 의 scripts/check_eks_version.py 가 지원 종료 30일 전부터 막아
+  #    코드 버전을 먼저 올리게 한다. 이 블록과 그 검사는 한 쌍이다.
+  upgrade_policy {
+    support_type = var.upgrade_support_type
+  }
+
   # Enable IRSA (IAM Roles for Service Accounts)
   # This is auto-enabled for clusters >= 1.13
 

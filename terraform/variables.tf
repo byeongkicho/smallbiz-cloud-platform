@@ -61,6 +61,9 @@ variable "eks_cluster_version" {
     43시간 돌았고, 청구서 $34.48 중 $21.56(63%)이 확장 지원 할증이었다.
     리소스를 더 쓴 것이 아니라 버전을 안 올려서 낸 돈이다.
     근거: docs/evidence/2026-04-apply-cycle.md
+
+    이 값은 scripts/check_eks_version.py 가 PR 마다·매주 감시한다
+    (종료 30일 전부터 CI 실패). 모듈의 upgrade_policy=STANDARD 와 한 쌍이다.
   EOT
   type        = string
   default     = "1.34"
