@@ -54,7 +54,7 @@ User
   ↓
 ALB (AWS Load Balancer Controller + Ingress)   ⚠️ 컨트롤러는 설치됨, ALB 생성은 미검증
   ↓
-EKS Cluster (Kubernetes 1.34)
+EKS Cluster (Kubernetes 1.37)
   ├── App Pods (Deployment + Service)
   └── HPA                                       ⚠️ metrics-server 추가됨(plan) — apply 미검증
   ↓
@@ -74,7 +74,7 @@ RDS MySQL (Private Subnet, db.t3.micro)
 | Category | Technology | 상태 |
 |---|---|---|
 | IaC | Terraform >= 1.5 | **검증** |
-| Container Orchestration | AWS EKS — 코드 1.34 | **apply 검증된 가동은 1.30 → 1.31** |
+| Container Orchestration | AWS EKS — 코드 1.37 | **apply 검증된 가동은 1.30 → 1.31** |
 | Node Management | 관리형 노드그룹 (t3.medium × 2) | **검증** |
 | Ingress | AWS Load Balancer Controller | 설치만 |
 | CD | ArgoCD (GitOps) | 설치만 |

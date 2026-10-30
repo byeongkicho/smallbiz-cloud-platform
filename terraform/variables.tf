@@ -53,7 +53,10 @@ variable "eks_cluster_version" {
   description = <<-EOT
     Kubernetes version for EKS.
 
-    1.34를 쓰는 이유: 표준 지원 종료가 2026-12-02로 아직 남아 있다.
+    1.37을 쓰는 이유: EKS 최신 버전(2026-10-01 출시)이고 표준 지원 종료가
+    2027-12-01로 가장 멀다. 2026-10-30 에 1.34(종료 2026-12-02)에서 올렸다.
+    바로 다음 1.35 는 종료가 2027-03-27 이라 2027-02-26 부터 아래 검사가 다시 막는다.
+    가동 중인 클러스터가 없어 생성 버전만 바꿨다 — docs/operations.md §2-1
     표준 지원이 끝난 버전은 확장 지원 요금이 붙어 제어 플레인이
     시간당 $0.10 → $0.60 (6배)이 된다.
 
@@ -66,7 +69,7 @@ variable "eks_cluster_version" {
     (종료 30일 전부터 CI 실패). 모듈의 upgrade_policy=STANDARD 와 한 쌍이다.
   EOT
   type        = string
-  default     = "1.34"
+  default     = "1.37"
 }
 
 variable "eks_node_instance_types" {

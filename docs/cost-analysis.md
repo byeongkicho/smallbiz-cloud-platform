@@ -63,7 +63,7 @@ EKS 합계                             $25.88
 | 표준 지원 버전 | $73 | **≈ $242** |
 | 확장 지원 버전 | **$438** | **≈ $607** |
 
-**월 $365의 차이가 코드 한 줄(`eks_cluster_version`)에서 나온다.** 그래서 이 값은 `variables.tf`에 근거 주석과 함께 고정해 뒀고, 현재 `1.34`(표준 지원 종료 2026-12-02)로 통일돼 있다. 이 사이클 당시에는 같은 값이 네 곳에서 서로 달랐다(`variables.tf` 1.29 / `tfvars.example` 1.31 / README 1.31 / 실제 가동 1.30→1.31).
+**월 $365의 차이가 코드 한 줄(`eks_cluster_version`)에서 나온다.** 그래서 이 값은 `variables.tf`에 근거 주석과 함께 고정해 뒀고, 현재 `1.37`(표준 지원 종료 2027-12-01)로 통일돼 있다(2026-10-30 1.34에서 올림 — [`operations.md §2-1`](operations.md)). 이 사이클 당시에는 같은 값이 네 곳에서 서로 달랐다(`variables.tf` 1.29 / `tfvars.example` 1.31 / README 1.31 / 실제 가동 1.30→1.31).
 
 ### 재발 방지 — 두 층 (2026-09-28 추가 · plan 확인, apply 미검증)
 
@@ -74,9 +74,9 @@ EKS 합계                             $25.88
 | ① 업그레이드 정책 | `aws_eks_cluster.upgrade_policy.support_type = "STANDARD"` (`modules/eks`) | 표준 지원이 끝나면 확장 지원으로 넘어가지 않고 **AWS가 다음 버전으로 자동 업그레이드**한다. 확장 지원 요금이 구조적으로 생기지 않는다. **기본값은 `EXTENDED`**라서 명시하지 않으면 2026-04처럼 할증이 붙는다 |
 | ② 수명주기 검사 | `scripts/check_eks_version.py` — PR마다 + **매주 정기 실행** | 표에 없는 버전·이미 종료된 버전·종료 30일 미만이면 CI 실패, 90일 미만이면 경고. `variables.tf`와 `tfvars.example`의 값이 다르면 실패 |
 
-**두 층은 한 쌍이다.** ①만 있으면 자동 업그레이드 뒤 실제 클러스터(1.35)가 코드(1.34)보다 앞서고, 다음 `plan`이 다운그레이드를 시도하다 실패한다(EKS는 다운그레이드를 받지 않는다). ②가 종료 30일 전부터 CI를 막아 **코드 버전을 먼저 올리게** 한다. 반대로 ②만 있으면 CI가 돌지 않는 동안 종료일이 지나갈 수 있다 — 그래서 ②는 PR뿐 아니라 날짜 기준으로도 돈다.
+**두 층은 한 쌍이다.** ①만 있으면 자동 업그레이드 뒤 실제 클러스터가 코드보다 한 버전 앞서고, 다음 `plan`이 다운그레이드를 시도하다 실패한다(EKS는 다운그레이드를 받지 않는다). ②가 종료 30일 전부터 CI를 막아 **코드 버전을 먼저 올리게** 한다. 반대로 ②만 있으면 CI가 돌지 않는 동안 종료일이 지나갈 수 있다 — 그래서 ②는 PR뿐 아니라 날짜 기준으로도 돈다.
 
-- 종료일 표 출처: [AWS EKS Kubernetes release calendar](https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html) (2026-09-28 확인). 새 버전이 나오면 스크립트의 표에 추가한다
+- 종료일 표 출처: [AWS EKS Kubernetes release calendar](https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html) (2026-09-28 확인 · 1.37 행은 2026-10-30 확인). 새 버전이 나오면 스크립트의 표에 추가한다
 - 검증: provider 5.100.0 스키마에 `upgrade_policy` 존재 확인 · `plan`에서 클러스터가 `support_type = "STANDARD"`로 생성 예정 확인 · 검사 스크립트 7개 분기(여유/경고/30일 미만/종료 후/모르는 버전/값 불일치/EXTENDED) 실행 확인. **apply는 하지 않았다**
 
 ## 의도한 트레이드오프
