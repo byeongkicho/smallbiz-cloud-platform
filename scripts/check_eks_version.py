@@ -19,7 +19,7 @@
 
 종료일 출처
   https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html
-  「Amazon EKS Kubernetes release calendar」 표, 2026-09-28 확인. 날짜는 UTC 기준이고
+  「Amazon EKS Kubernetes release calendar」 표, 2026-09-28 확인 · 1.37 행은 2026-10-30 추가. 날짜는 UTC 기준이고
   확장 지원 과금은 그날 UTC 0시부터 시작한다. 새 버전이 나오면 이 표에 추가할 것.
 
 사용
@@ -40,6 +40,7 @@ END_OF_STANDARD_SUPPORT = {
     "1.34": "2026-12-02",
     "1.35": "2027-03-27",
     "1.36": "2027-08-02",
+    "1.37": "2027-12-01",
 }
 FAIL_DAYS = 30
 WARN_DAYS = 90
