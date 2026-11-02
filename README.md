@@ -27,7 +27,7 @@
 
 ## 💡 Why this project
 
-A career-transition portfolio: from a social-work undergrad to infrastructure engineering, currently running daily enterprise IT operations through a global IT delivery chain — Linux/Windows servers on HPE/Dell/Cisco hardware, M365 and Entra ID lifecycle management, and solo on-site delivery for an enterprise customer.
+A career-transition portfolio: from a social-work undergrad to infrastructure engineering, currently running daily enterprise IT operations through a global IT delivery chain — Dell server delivery and racking with OS installs (Windows Server; Rocky Linux on an in-house server), M365 / Entra ID account work as directed by global IT, and solo on-site delivery for an enterprise customer.
 
 2026-04-01 ~ 04-03에 개인 AWS 계정에서 실제로 `terraform apply` → `terraform destroy`까지 수행했다 (state serial 44 → 93, 리소스 24 → 0). 클러스터 가동 **43.13시간**, 총 청구 **$34.48**. 검증된 범위와 그렇지 않은 범위는 위 표에 그대로 적었다.
 
